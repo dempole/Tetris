@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HTML-TETRIS</title>
+<script>
+<!--Globale Variablen-->
+var ctx;    										//canvas
+var t;     											//piece type
+var x, y;   										//piece position
+var o;      										//piece alignment
+var grid;   										//grid
+var timer;  										//game time
+var score;  										//points
+var level;  										//level
+var timestep;   									//time to next update
+  
+/************************************************
+INITIALIZING CANVAS
+************************************************/
+
+
+function initialize() {
+   
+    <!--get canvas information-->
+    c = document.getElementById("myCanvas");
+    ctx = c.getContext("2d");
+     
+    <!--initialiting variables-->
+    t = 1 + Math.floor((Math.random()*7));			//get random number for piece type
+    x = 4;											//start position of next piece
+    y = 18;											//start position of next piece
+    o = 0;											//get alignment
+     
+    <!--get empty grid-->
+    grid = new Array(20);			
+    for(i = 0; i < 20; i++) {
+        grid[i] = new Array(10);
+        for(j = 0; j < 10; j++)
+            grid[i][j] = 0;
+    }
+     
+    <!--get net piece-->
+    drawTetrimino(x,y,t,o,1);
+     
+    <!--refresh grid-->
+    drawGrid();
+     
+    score = 0;										//set points to 0
+    level = 1;										//set level to 1
+    timestep = 1000;								//set refresh rate
+     
+    <!--start game timer-->
+    clearInterval(timer);
+    timer = setInterval(function(){gameStep()}, timestep);
+}
+ 
+ 
+/************************************************
+Draws the current game state grid
+************************************************/
+function drawGrid() {
+     
+    <!--get empty canvas-->
+    ctx.clearRect(0,0,200,400);
+     
+    <!--overwrite every line with an empty canvas-->
+    for(i = 0; i < 20; i++) {
+        for(j = 0; j < 10; j++)
+            drawBlock(j, i, grid[i][j]);
+    }
+}
+  
+  
+/************************************************
+Draws a block at the specified game coordinate
+x = [0,9]   x-coordinate
+y = [0,19]  y-coordinate
+t = [0,7]   block type
+************************************************/
+function drawBlock(x, y, t) {
+     
+    <!--check if a new piece is needed-->
+    if(t > 0) {
+     
+        <!--get piece color-->
+        var c;
+        if(t == 1)      							//I
+            c = 180;    							//cyan
+        else if(t == 2) 							//J
+            c = 240;   								//blue
+        else if(t == 3)								//L
+            c = 40;    								//orange
+        else if(t == 4) 							//O
+            c = 60;     							//yellow
+        else if(t == 5) 							//S
+            c = 120;    							//lime
+        else if(t == 6) 							//T
+            c = 280;    							//purple
+        else            							//Z
+            c = 0;      							//red
+     
+        <!--Convert Gamecoordinates into Pixelcoordinates-->
+        pixelX = x*20;
+        pixelY = (19-y)*20;
+           
+           
+        /**** generate the center piece ****/
+           
+        <!--get Color of Piece-->
+        ctx.fillStyle = "hsl(" + c + ",100%,50%)";
+           
+        <!--get Filled in Piece-->
+        ctx.fillRect(pixelX+2,pixelY+2,16,16);
+         
+         
+        /**** generate the top poligon ****/
+           
+        <!--color is brighter than the center-->
+        ctx.fillStyle = "hsl(" + c + ",100%,70%)";
+           
+        <!--generate the top poligon and color it-->
+        ctx.beginPath();
+        ctx.moveTo(pixelX,pixelY);
+        ctx.lineTo(pixelX+20,pixelY);
+        ctx.lineTo(pixelX+18,pixelY+2);
+        ctx.lineTo(pixelX+2,pixelY+2);
+        ctx.fill();
+           
+           
+        /**** generate the side poligons ****/
+           
+        <!--color is darker than the center-->
+        ctx.fillStyle = "hsl(" + c + ",100%,40%)";
+           
+        <!--generate the left poligon and color it-->
+        ctx.beginPath();
+        ctx.moveTo(pixelX,pixelY);
+        ctx.lineTo(pixelX,pixelY+20);
+        ctx.lineTo(pixelX+2,pixelY+18);
+        ctx.lineTo(pixelX+2,pixelY+2);
+        ctx.fill();
+           
+        <!--generate the right poligon and color it-->
+        ctx.beginPath();
+        ctx.moveTo(pixelX+20,pixelY);
+        ctx.lineTo(pixelX+20,pixelY+20);
+        ctx.lineTo(pixelX+18,pixelY+18);
+        ctx.lineTo(pixelX+18,pixelY+2);
+        ctx.fill();
+           
+           
+        /**** generate the bottom poligon ****/
+           
+        <!--color is darker than the sides-->
+        ctx.fillStyle = "hsl(" + c + ",100%,30%)";
+           
+        <!--generate the bottom poligon and color it-->
+        ctx.beginPath();
+        ctx.moveTo(pixelX,pixelY+20);
+        ctx.lineTo(pixelX+20,pixelY+20);
+        ctx.lineTo(pixelX+18,pixelY+18);
+        ctx.lineTo(pixelX+2,pixelY+18);
+        ctx.fill();
+    }
+}
+   
+   
+/*************************************************
+Draws a tetrimino at the specified game coordinate
+with the specified orientation
+x = [0,9]   x-coordinate
+y = [0,19]  y-coordinate
+t = [1,7]   tetrimino type
+o = [0,3]   orientation
+d = [-1,1]  test, erase, or draw
+*************************************************/
+function drawTetrimino(x,y,t,o,d) {
+ 
+    <!--determines piece-->
+    c = -1;
+    if(d >= 0) c = t*d;
+     
+   
+    valid = true;
+ 
+    /**** get the right piece ****/
+    if(t == 1) { //I
+           
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x+2,y,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x+1,y+1,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x+1,y-1,c);
+            valid = valid && setGrid(x+1,y-2,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y-1,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x+1,y-1,c);
+            valid = valid && setGrid(x+2,y-1,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x,y-2,c);
+        }
+    }
+    if(t == 2) { //J
+           
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y+1,c);
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x+1,y+1,c);
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x+1,y-1,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x-1,y-1,c);
+        }
+    }
+    if(t == 3) { //L
+           
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x+1,y+1,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x+1,y-1,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y-1,c);
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x-1,y+1,c);
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+        }
+    }
+    if(t == 4) { //O
+           
+        
+        valid = valid && setGrid(x,y,c);
+        valid = valid && setGrid(x+1,y,c);
+        valid = valid && setGrid(x,y+1,c);
+        valid = valid && setGrid(x+1,y+1,c);
+    }
+    if(t == 5) { //S
+          
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x+1,y+1,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x+1,y-1,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y-1,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x-1,y+1,c);
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+        }
+    }
+    if(t == 6) { //T
+           
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x,y+1,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x+1,y,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x,y-1,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x-1,y,c);
+        }
+    }
+    if(t == 7) { //Z
+           
+        //get alignment
+        if(o == 0) {
+            valid = valid && setGrid(x-1,y+1,c);
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x+1,y,c);
+        }
+        else if(o == 1) {
+            valid = valid && setGrid(x+1,y+1,c);
+            valid = valid && setGrid(x+1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+        }
+        else if(o == 2) {
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x,y-1,c);
+            valid = valid && setGrid(x+1,y-1,c);
+        }
+        else if(o == 3) {
+            valid = valid && setGrid(x,y+1,c);
+            valid = valid && setGrid(x,y,c);
+            valid = valid && setGrid(x-1,y,c);
+            valid = valid && setGrid(x-1,y-1,c);
+        }
+    }
+     
+    return valid;
+}
+ 
+  
+/*************************************************
+Sets a grid cell in the game state grid
+x = [0,9]   x-coordinate
+y = [0,19]  y-coordinate
+t = [-1,7]  test or block type
+*************************************************/
+function setGrid(x, y, t) {
+     
+    //check if its still in the grid
+    if(x >= 0 && x < 10 && y >= 0 && y < 20) {
+         
+        //output
+        if(t < 0) return grid[y][x] == 0;
+         
+        //if in grid confirm position
+        grid[y][x] = t;
+        return true;
+    }
+    return false;
+}
+  
+  
+/*************************************************
+Get Keys
+*************************************************/
+function keyDown(e) {
+     
+    if(e.keyCode == 37) { //arrow left
+        drawTetrimino(x,y,t,o,0);  //delete actual piece
+        x2 = x - 1;
+        if(drawTetrimino(x2,y,t,o,-1)) //check if piece is still in the grid
+            x = x2;
+    }
+    else if(e.keyCode == 38) { //arrow up
+        drawTetrimino(x,y,t,o,0);  //delete actual piece
+        o2 = (o + 1) % 4;
+        if(drawTetrimino(x,y,t,o2,-1)) //check if piece is still in the grid
+            o = o2;
+    }
+    else if(e.keyCode == 39) { //arrow right
+        drawTetrimino(x,y,t,o,0);  //delete actual piece
+        x2 = x + 1;
+        if(drawTetrimino(x2,y,t,o,-1)) //check if piece is still in the grid
+            x = x2;
+    }
+    else if(e.keyCode == 40) { //arrow down
+        drawTetrimino(x,y,t,o,0);  //delete actual piece
+        y2 = y - 1;
+        if(drawTetrimino(x,y2,t,o,-1)) //check if piece is still in the grid
+            y = y2;
+    }
+    else if(e.keyCode == 32) { //Space-bar
+        drawTetrimino(x,y,t,o,0);  //delete actual piece
+         
+        //move piece until it reaches bottom part of grid
+        while(drawTetrimino(x,y-1,t,o,-1))
+            y -= 1;
+             
+        gameStep();
+    }
+      
+    //get new piece
+    drawTetrimino(x,y,t,o,1);
+     
+    //redraw the grid
+    drawGrid();
+}
+ 
+ 
+/*************************************************
+GAME HISTORY
+*************************************************/
+function gameStep() {
+ 
+    //delete acutal piece
+    drawTetrimino(x,y,t,o,0);  
+     
+    //check if piece can drop one more field
+    y2 = y - 1;
+    if(drawTetrimino(x,y2,t,o,-1))
+        y = y2;
+    else {
+     
+        //redraw piece
+        drawTetrimino(x,y,t,o,1);
+     
+        //check if row is filled complete
+        checkLines();
+     
+        //draw new piece
+        t2 = 1 + Math.floor((Math.random()*7));
+        x2 = 4;
+        y2 = 18;
+        o2 = 0;
+         
+        //check if new piece is drawable
+        if(drawTetrimino(x2,y2,t2,o2,-1)) {
+            t = t2;
+            x = x2;
+            y = y2;
+            o = o2;
+        }
+        else {
+            alert("Game Over");
+            initialize();
+            return;
+        }
+         
+    }
+     
+    //draw piece
+    drawTetrimino(x,y,t,o,1);
+     
+    //redraw grid
+    drawGrid();
+}
+ 
+ 
+/*************************************************
+REMOVE COMPLETE ROWS
+*************************************************/
+function checkLines() {
+ 
+    //check every row
+    for(i = 0; i < 20; i++) {
+     
+        //check if filled completely
+        full = true;
+        for(j = 0; j < 10; j++)
+            full = full && (grid[i][j] > 0);
+             
+        if(full) {
+         
+            //add to score
+            score++;
+             
+            //ckeck if enouth points for next level
+            if(score >= level*10) {
+                level++;
+                 
+                //speed gets faster
+                timestep *= 0.8;
+                clearInterval(timer);
+                timer = setInterval(function(){gameStep()}, timestep);
+            }
+         
+            //update level and points
+            document.getElementById("score").innerHTML = "Level " + level + "   Score: " + score;
+         
+            //check the other rows
+            for(ii = i; ii < 19; ii++) {
+                 
+                
+                for(j = 0; j < 10; j++)
+                    grid[ii][j] = grid[ii+1][j];
+            }
+             
+            //check if top row is empty
+            for(j = 0; j < 10; j++)
+                grid[19][j] = 0;
+                 
+            //repeat the check
+            i--;
+        }
+    }
+}
+</script>
+<body onload="initialize();" onkeydown="keyDown(event);"
+      style="background-color:#EEEEEE">
+<canvas id="myCanvas" height="400px" width="200px"
+        style="background-color:#3d3d3d"></canvas>
+<div id="score" style="width:200px;background-color:#b7b7b7">
+    Level 1   Score: 0
+</div>
+</body>
+</html>
